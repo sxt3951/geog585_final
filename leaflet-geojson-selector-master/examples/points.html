@@ -1,0 +1,78 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+<html xmlns="https://www.w3.org/1999/xhtml"> 
+<head> 
+<title></title> 
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.css" type="text/css"
+        crossorigin="">    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.js" crossorigin=""></script>
+
+<link rel="stylesheet" href="leaflet-geojson-selector.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="map"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js"></script>
+<script src="leaflet-geojson-selector.js"></script>
+<script>
+	var geoLayer, geoList,
+		map = new L.Map('map', {
+		layers: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+		zoomControl: false,
+		attributionControl:false
+	});
+	map.setView([42.0, 12.5], 6); // [latitude, longitude], zoom level
+
+
+	$.getJSON('mezcals3.geojson', function(json) {
+
+		geoLayer = L.geoJson(json).addTo(map);
+
+geoList = new L.Control.GeoJSONSelector(geoLayer, {
+    listOnlyVisibleLayers: true,
+    activeListFromLayer: true,
+	zoomToLayer: true,
+    multiple: false,
+    collapsed: true,
+    listItemBuild: function(layer) {
+        var properties = layer.feature.properties;
+        var brandName = properties.BrandName || 'Unknown Brand';
+        var maguey = properties.Maguey || 'Unknown Maguey';
+        return '<div>' + '<b>'+ brandName + '</b>' + ', ' + maguey + '</div>';
+    }
+});
+
+map.addControl(geoList);
+
+
+
+		geoList.on('selector:change', function(e) {
+
+			var jsonObj = $.parseJSON( JSON.stringify(e.layers[0].feature.properties) );
+			var html = 'Selection:<br /><table border="1">';
+			$.each(jsonObj, function(key, value){
+					html += '<tr>';
+					html += '<td>' + key.replace(":", " ") + '</td>';
+					html += '<td>' + value + '</td>';
+					html += '</tr>';
+			});
+			html += '</table>';
+
+			$('.selection').html(html);
+		});
+
+		map.addControl(function() {
+			var c = new L.Control({position:'bottomright'});
+			c.onAdd = function(map) {
+					return L.DomUtil.create('pre','selection');
+				};
+			return c;
+		}());
+		
+	});
+</script>
+
+<div id="copy"><a href="https://opengeo.tech/">Opengeo.tech</a> &bull; <a rel="author" href="https://opengeo.tech/stefano-cudini/">Stefano Cudini</a></div>
+	
+</body>
+</html>
