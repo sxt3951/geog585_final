@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Mezcal Production Locations</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.js" crossorigin=""></script>
+    <script src="mezcals4test.js"></script>
+    <script src="./dist/leaflet.markercluster.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <script src="leaflet-geojson-selector-master/dist/leaflet-geojson-selector.min.js"></script>
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.css" type="text/css"
+        crossorigin="">
+    <link rel="stylesheet" href="style.css" type="text/css">
+    <link rel="stylesheet" href="leaflet-geojson-selector-master/dist/leaflet-geojson-selector.min.css" type="text/css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./dist/MarkerCluster.css" type="text/css">
+    <link rel="stylesheet" href="./dist/MarkerCluster.Default.css" type="text/css">
+
+    <style>
+        body {
+            padding-top: 120px;
+            padding-bottom: 40px;
+        }
+
+        iframe {
+            border: none;
+        }
+
+        #brandImage {
+            padding-bottom: 20px;
+        }
+
+        #brandImage img {
+            max-height: 100px;
+        }
+
+        #bottleImage img {
+            max-height: 400px;
+        }
+
+        .leaflet-container .geojson-list {
+            background-color: #206216cc;
+        }
+
+        .geojson-list-item.selected {
+            background-color: #206216;
+        }
+
+        .geojson-list-item.selected.active {
+            background-color: #206216 !important;
+        }
+
+        .geojson-list-item.active {
+            background-color: #20621600;
+        }
+
+        .geojson-list-item:hover {
+            background-color: #20621600 !important;
+        }
+
+        .geojson-list-item label {
+            color: #fff;
+            padding: 5px;
+        }
+
+        .geojson-list-item.selected label {
+            color: #99f113
+        }
+
+        .geojson-list-item:hover label {
+            color: #99f113
+        }
+
+        input[type="radio"] {
+            display: none;
+        }
+
+        .row-fluid .span7 {
+            width: 25%
+        }
+
+        .row-fluid .span5 {
+            width: 70%;
+        }
+
+        .navbar-inner .container-fluid {
+            text-align: center;
+
+        }
+
+        .navbar-inverse,
+        .navbar-inverse .navbar-inner,
+        .navbar.navbar-inverse.navbar-fixed-top {
+            background-color: #206216 !important;
+            background-image: none !important;
+            border-color: #206216 !important;
+        }
+
+        .navbar-inner h1 {
+            font-size: 30px;
+            margin: 0;
+            color: #fff;
+        }
+
+        .navbar-inner h2 {
+            font-size: 20px;
+            margin: 0;
+            font-weight: normal;
+            color: #fff;
+        }
+
+        @media (max-width: 1200px) {
+            .row-fluid {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .span5 {
+                order: 1;
+                width: 100% !important;
+                margin-bottom: 20px;
+                height: 400px;
+            }
+
+            .span7 {
+                order: 2;
+                width: 100% !important;
+            }
+
+            #mapid {
+                height: 100% !important;
+                min-height: 300px;
+            }
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        var map;
+
+        function init() {
+            // create map and set center and zoom level
+            map = new L.map('mapid', {
+                zoomControl: false,
+            });
+            map.setView([21.71230647183802, -101.09051279669134], 5);
+
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+
+            var selection;
+            var selectedLayer;
+
+
+
+            var googleStreets = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+            googleStreets.addTo(map);
+
+            // new L.Control.Geocoder().addTo(map);
+
+            // create google hybrid, satellite, and terrain layer (not adding to the map)
+
+            var googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+            var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+            var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+
+
+            // create icons for mezcals (selected and unselected)
+            var mezcalsIcon = L.icon({
+                iconUrl: 'agaveUnselected.svg',
+                iconSize: [25, 25]
+            });
+
+            var selectedMezcalsIcon = L.icon({
+                iconUrl: 'agaveSelected.svg',
+                iconSize: [30, 30]
+            });
+
+            // handle click events on mezcals features
+            function mezcalsOnEachFeature(feature, layer) {
+                layer.on({
+                    click: function (e) {
+                        if (selection) {
+                            resetStyles();
+                        }
+
+                        e.target.setIcon(selectedMezcalsIcon);
+                        selection = e.target;
+                        selectedLayer = mezcalsLayer;
+
+                        // Insert some HTML with the feature name
+                        buildSummaryLabel(feature);
+
+                        L.DomEvent.stopPropagation(e); // stop click event from being propagated further
+                    }
+                });
+            }
+
+            var markers = L.markerClusterGroup({
+    showCoverageOnHover: false
+            });
+
+            // add the mezcals GeoJSON layer using the mezcalsData variable from mezcals.js
+            mezcalsLayer = new L.geoJSON(mezcalsData, {
+                pointToLayer: function (feature, latlng) {
+                    return L.marker(latlng, { icon: mezcalsIcon });
+                },
+                onEachFeature: mezcalsOnEachFeature
+            }
+            );
+
+
+            // add the mezcals layer to the cluster group layer 
+            markers.addLayer(mezcalsLayer);
+
+            // add the markers layer to the map
+            map.addLayer(markers);
+
+            geoList = new L.Control.GeoJSONSelector(markers, {
+                position: 'topleft',
+                listOnlyVisibleLayers: true,
+                activeListFromLayer: true,
+                multiple: false,
+                collapsed: true,
+                listItemBuild: function (layer) {
+                    var properties = layer.feature.properties;
+                    var brandName = properties.BrandName
+                    var maguey = properties.Maguey
+
+                    // Return the HTML string for the list item
+                    return '<div>' + '<b>' + brandName + '</b>' + '<br>' + maguey + '</div>';
+                }
+            });
+
+            map.addControl(geoList);
+
+
+
+            geoList.on('selector:change', function (e) {
+                if (e.layers && e.layers.length > 0) {
+                    var layer = e.layers[0];
+
+
+                    if (selection) {
+                        resetStyles();
+                    }
+
+                    layer.setIcon(selectedMezcalsIcon);
+                    selection = layer;
+                    selectedLayer = mezcalsLayer;
+
+                    buildSummaryLabel(layer.feature);
+
+                    markers.zoomToShowLayer(layer)
+                }
+            });
+
+
+
+
+
+
+            // define basemap and thematic layers and add layer switcher control
+            var basemaps = {
+                "Google Streets": googleStreets,
+                "Google Hybrid": googleHybrid,
+                "Google Satellite": googleSat,
+                "Google Terrain": googleTerrain
+            };
+
+            var overlays = {
+                "Mezcals": markers
+            };
+
+            L.control.layers(basemaps, overlays).addTo(map);
+
+
+            // handle clicks on the map that didn't hit a feature
+            map.addEventListener('click', function (e) {
+                if (selection) {
+                    resetStyles();
+                    selection = null;
+                    document.getElementById('summaryLabel').innerHTML = '<p>Click an agave plant for more information.</p>';
+                    document.getElementById('bottleImage').innerHTML = '';
+                    document.getElementById('brandImage').innerHTML = '';
+                }
+            });
+
+            // function to set the old selected feature back to its original symbol. Used when the map or a feature is clicked.
+            function resetStyles() {
+                if (selectedLayer === mezcalsLayer) selection.setIcon(mezcalsIcon);
+            }
+
+            // function to build the HTML for the summary label using the selected feature's "name" property
+            function buildSummaryLabel(currentFeature) {
+                var FeatureBrandIcon = currentFeature.properties.BrandIcon || "Brand icon not available";
+                var featureName = currentFeature.properties.BrandName || "Unknown Brand";
+                var featureMezcalero = currentFeature.properties.Mezcalero || "Unknown Mezcalero";
+                var featureAgave = currentFeature.properties.Agave || "Unknown Agave";
+                var featureMaguey = currentFeature.properties.Maguey || "Unknown Maguey";
+                var featureTown = currentFeature.properties.Town || "Unknown Town";
+                var featureState = currentFeature.properties.State || "Unknown State";
+                var featureStyle = currentFeature.properties.Style || "Unknown Style";
+                var featurePhoto = currentFeature.properties.Photo || '<P>Photo not available</P>';
+                document.getElementById('brandImage').innerHTML = FeatureBrandIcon
+                document.getElementById('summaryLabel').innerHTML = '<p style="font-size:16px" ><b>' + 'Brand: ' + '</b>' + featureName + '</p>' + '<p style="font-size:16px"><b>' + 'Maguey: ' + '</b>' + featureMaguey + '</p>' + '<p style="font-size:16px"><b>' + 'Agave: ' + '</b>' + featureAgave + '</p>' + '<p style="font-size:16px"><b>' + 'Mezcalero: ' + '</b>' + featureMezcalero + '</p>' + '<p style="font-size:16px"><b>' + 'Production Location: ' + '</b>' + featureTown + ', ' + featureState + '</p>';
+                document.getElementById('bottleImage').innerHTML = featurePhoto
+            }
+
+        }
+
+    </script>
+</head>
+
+<body onload="init()">
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container-fluid">
+                <h1> A Map of Mezcal Production Locations</h1>
+                <h2> Created by Sarah Thorne</h2>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row-fluid">
+            <div class="span5">
+                <div id="mapid">
+                </div>
+            </div>
+            <div class="span7">
+                <div id="bottleInfo">
+                    <div id="brandImage"></div>
+                    <table>
+                        <tr>
+                            <td id='summaryLabel'>
+                                <p>Click an agave plant or cluster to learn more.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="bottleImage"></div>
+            </div>
+        </div>
+    </div>
+    <!-- <div id="mapid"></div>
+    <div id="summaryLabel">
+    <p>Click an agave plant to get more information.</p>
+   </div> -->
+</body>
+
+</html>
